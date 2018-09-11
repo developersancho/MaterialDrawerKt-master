@@ -1,0 +1,49 @@
+image: registry.gitlab.com/hardysim/android-ci:latest
+
+cache:
+  paths:
+  - .gradle/wrapper
+  - .gradle/caches
+  - .android/build-cache/
+
+stages:
+- build
+- release
+
+before_script:
+- export GRADLE_USER_HOME=.gradle
+- export ANDROID_SDK_HOME=$CI_PROJECT_DIR
+- chmod +x ./gradlew
+
+debug build:
+  stage: build
+  tags:
+    - docker
+  script:
+    - ./gradlew assembleDebug
+  except:
+    - master
+
+library release build:
+  stage: build
+  tags:
+    - docker
+  script:
+    - ./gradlew clean library:assembleRelease androidSourcesJar androidJavadocsJar
+  artifacts:
+    paths:
+      - library/build*
+  only:
+    - master
+
+library upload to Bintray:
+  stage: release
+  tags:
+    - docker
+  script:
+    - ./gradlew generatePomFileForReleasePublication bintrayUpload
+  dependencies:
+    - library release build
+  only:
+    - master
+  when: manual
